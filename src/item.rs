@@ -78,10 +78,12 @@ impl<'src> Item<'src> {
 impl ColorDisplay for Item<'_> {
   fn fmt(&self, f: &mut Formatter, color: Color) -> fmt::Result {
     if let Some(doc) = self.doc_comment() {
-      if doc.is_empty() {
-        writeln!(f, "#")?;
-      } else {
-        writeln!(f, "# {doc}")?;
+      for line in doc.split('\n') {
+        if line.is_empty() {
+          writeln!(f, "#")?;
+        } else {
+          writeln!(f, "# {line}")?;
+        }
       }
     }
 

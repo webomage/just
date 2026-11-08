@@ -253,3 +253,27 @@ fn empty_module_quiet() {
     .args(["--quiet", "--usage", "foo"])
     .success();
 }
+
+#[test]
+fn multi_line_hash_doc_comment_on_recipe() {
+  Test::new()
+    .justfile(
+      "
+        # line one
+        # line two
+        foo bar:
+      ",
+    )
+    .args(["--usage", "foo"])
+    .stdout(
+      "
+        # line one
+        # line two
+        Usage: just foo bar
+
+        Arguments:
+          bar
+      ",
+    )
+    .success();
+}
