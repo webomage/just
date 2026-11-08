@@ -560,6 +560,7 @@ impl<'run, 'src> Parser<'run, 'src> {
           attributes.ensure_valid_attributes(ItemKind::Import, relative.token)?;
           Item::Import {
             absolute: None,
+            absolutes: Vec::new(),
             attributes,
             optional,
             relative,

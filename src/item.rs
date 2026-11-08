@@ -12,6 +12,7 @@ pub(crate) enum Item<'src> {
   Function(FunctionDefinition<'src>),
   Import {
     absolute: Option<Utf8PathBuf>,
+    absolutes: Vec<Utf8PathBuf>,
     attributes: AttributeSet<'src>,
     optional: bool,
     relative: StringLiteral<'src>,

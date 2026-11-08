@@ -78,29 +78,50 @@ impl Compiler {
           Item::Import {
             relative,
             absolute,
+            absolutes,
             optional,
             ..
           } => {
-            let import = current
-              .path
-              .parent()
-              .unwrap()
-              .join(Self::expand_tilde(&relative.cooked)?)
-              .clean();
+            let parent = current.path.parent().unwrap();
+            let expanded = Self::expand_tilde(&relative.cooked)?;
 
-            if filesystem::is_file(&import)? {
-              if current.file_path.contains(&import) {
-                return Err(Error::CircularImport {
-                  current: current.path,
-                  import,
+            if expanded.as_str().contains('*') || expanded.as_str().contains('?') {
+              let matched = Self::expand_wildcard_imports(parent, expanded.as_str())?;
+              if matched.is_empty() {
+                if !*optional {
+                  return Err(Error::MissingImportFile {
+                    path: relative.token,
+                  });
+                }
+              } else {
+                for (idx, import) in matched.into_iter().enumerate() {
+                  if current.file_path.contains(&import) {
+                    return Err(Error::CircularImport {
+                      current: current.path,
+                      import,
+                    });
+                  }
+                  absolutes.push(import.clone());
+                  stack.push(current.import(import, relative.token.offset + idx));
+                }
+              }
+            } else {
+              let import = parent.join(expanded).clean();
+
+              if filesystem::is_file(&import)? {
+                if current.file_path.contains(&import) {
+                  return Err(Error::CircularImport {
+                    current: current.path,
+                    import,
+                  });
+                }
+                *absolute = Some(import.clone());
+                stack.push(current.import(import, relative.token.offset));
+              } else if !*optional {
+                return Err(Error::MissingImportFile {
+                  path: relative.token,
                 });
               }
-              *absolute = Some(import.clone());
-              stack.push(current.import(import, relative.token.offset));
-            } else if !*optional {
-              return Err(Error::MissingImportFile {
-                path: relative.token,
-              });
             }
           }
           _ => {}
@@ -259,6 +280,82 @@ impl Compiler {
     } else {
       Utf8PathBuf::from(path)
     })
+  }
+
+  fn wildcard_matches(pattern: &str, name: &str) -> bool {
+    let mut pat_str = String::from("^");
+    for ch in pattern.chars() {
+      match ch {
+        '*' => pat_str.push_str(".*"),
+        '?' => pat_str.push('.'),
+        '.' | '+' | '(' | ')' | '[' | ']' | '{' | '}' | '^' | '$' | '|' | '\\' => {
+          pat_str.push('\\');
+          pat_str.push(ch);
+        }
+        _ => pat_str.push(ch),
+      }
+    }
+    pat_str.push('$');
+    Regex::new(&pat_str)
+      .map(|re| re.is_match(name))
+      .unwrap_or(false)
+  }
+
+  fn expand_wildcard_imports(
+    parent: &Utf8Path,
+    pattern: &str,
+  ) -> RunResult<'static, Vec<Utf8PathBuf>> {
+    let mut candidates = vec![parent.to_owned()];
+
+    for component in Utf8Path::new(pattern).components() {
+      match component {
+        Utf8Component::CurDir => {}
+        Utf8Component::ParentDir => {
+          candidates = candidates
+            .into_iter()
+            .map(|c| c.join("..").clean())
+            .collect();
+        }
+        Utf8Component::RootDir | Utf8Component::Prefix(_) => {
+          candidates = vec![Utf8PathBuf::from(component.as_str())];
+        }
+        Utf8Component::Normal(seg) => {
+          if seg.contains('*') || seg.contains('?') {
+            let mut next = Vec::new();
+            for dir in candidates {
+              if let Ok(entries) = fs::read_dir(&dir) {
+                let mut matched_in_dir = Vec::new();
+                for entry in entries.flatten() {
+                  if let Ok(utf8_path) = Utf8PathBuf::from_path_buf(entry.path())
+                    && let Some(file_name) = utf8_path.file_name()
+                    && Self::wildcard_matches(seg, file_name)
+                  {
+                    matched_in_dir.push(utf8_path.clean());
+                  }
+                }
+                matched_in_dir.sort();
+                next.extend(matched_in_dir);
+              }
+            }
+            candidates = next;
+          } else {
+            candidates = candidates
+              .into_iter()
+              .map(|c| c.join(seg).clean())
+              .collect();
+          }
+        }
+      }
+    }
+
+    let mut files = Vec::new();
+    for candidate in candidates {
+      if filesystem::is_file(&candidate)? && !files.contains(&candidate) {
+        files.push(candidate);
+      }
+    }
+    files.sort();
+    Ok(files)
   }
 
   #[cfg(test)]

@@ -88,11 +88,15 @@ impl<'run, 'src> Analyzer<'run, 'src> {
           Item::Function(function) => {
             self.functions.push(function);
           }
-          Item::Import { absolute, .. } => {
-            if let Some(absolute) = absolute
-              && imports.insert(absolute)
-            {
-              stack.push(asts.get(&(module_path.clone(), absolute.clone())).unwrap());
+          Item::Import {
+            absolute,
+            absolutes,
+            ..
+          } => {
+            for abs in absolutes.iter().rev().chain(absolute.iter()) {
+              if imports.insert(abs) {
+                stack.push(asts.get(&(module_path.clone(), abs.clone())).unwrap());
+              }
             }
           }
           Item::Module {

@@ -450,3 +450,34 @@ fn nested_multiply_imported_items_do_not_conflict() {
     .stdout("hello\n")
     .success();
 }
+
+#[test]
+fn wildcard_imports_expand_sorted_files() {
+  Test::new()
+    .justfile(
+      "
+        import 'just/*.just'
+
+        @all: a b
+      ",
+    )
+    .write("just/b.just", "@b:\n  echo B\n")
+    .write("just/a.just", "@a:\n  echo A\n")
+    .stdout("A\nB\n")
+    .success();
+}
+
+#[test]
+fn optional_wildcard_import_with_no_matches_succeeds() {
+  Test::new()
+    .justfile(
+      "
+        import? 'missing/*.just'
+
+        @ok:
+          echo ok
+      ",
+    )
+    .stdout("ok\n")
+    .success();
+}
