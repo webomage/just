@@ -380,3 +380,40 @@ fn report_non_not_found_errors() {
     )
     .status(1);
 }
+
+#[test]
+fn list_includes_fallback_recipes() {
+  Test::new()
+    .justfile(
+      "
+        # parent recipe
+        parent_only:
+          @echo parent
+
+        shared:
+          @echo parent_shared
+      ",
+    )
+    .write(
+      "sub/justfile",
+      "
+        set fallback
+
+        # child recipe
+        shared:
+          @echo child_shared
+      ",
+    )
+    .current_dir("sub")
+    .arg("--list")
+    .stdout(
+      "
+        Available recipes:
+            shared # child recipe
+
+            [fallback]
+            parent_only # parent recipe
+      ",
+    )
+    .success();
+}
