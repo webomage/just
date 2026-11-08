@@ -256,6 +256,7 @@ impl<'src> UnresolvedRecipe<'src> {
     Ok(Recipe {
       attributes,
       body: self.body,
+      comment: self.comment,
       dependencies,
       doc: self.doc,
       file_depth: self.file_depth,

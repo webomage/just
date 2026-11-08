@@ -5,6 +5,8 @@ use super::*;
 pub(crate) struct Recipe<'src, D = Dependency<'src>> {
   pub(crate) attributes: AttributeSet<'src>,
   pub(crate) body: Vec<Line<'src>>,
+  #[serde(skip)]
+  pub(crate) comment: Option<&'src str>,
   pub(crate) dependencies: Vec<D>,
   pub(crate) doc: Option<String>,
   #[serde(skip)]
@@ -794,6 +796,10 @@ impl<D: Display> ColorDisplay for Recipe<'_, D> {
       }
 
       write!(f, " {dependency}")?;
+    }
+
+    if let Some(comment) = self.comment {
+      write!(f, " {comment}")?;
     }
 
     for (i, line) in self.body.iter().enumerate() {

@@ -1398,9 +1398,13 @@ impl<'run, 'src> Parser<'run, 'src> {
       dependencies.append(&mut subsequents);
     }
 
-    if self.next_are(&[Comment, Eol, Indent]) || self.next_are(&[Eol, Indent]) {
+    let comment = if self.next_are(&[Comment, Eol, Indent]) || self.next_are(&[Eol, Indent]) {
+      let comment = self.accept(Comment)?.map(|token| token.lexeme().trim_end());
       self.expect_eol()?;
-    }
+      comment
+    } else {
+      None
+    };
 
     let body = self.parse_body()?;
 
@@ -1441,6 +1445,7 @@ impl<'run, 'src> Parser<'run, 'src> {
     Ok(Recipe {
       attributes,
       body,
+      comment,
       dependencies,
       doc,
       file_depth: self.file_depth,
