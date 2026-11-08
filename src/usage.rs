@@ -33,6 +33,11 @@ impl ColorDisplay for Usage<'_> {
         }
       }
       Mode::Recipe => {
+        if let Some(doc) = self.recipe.doc() {
+          for line in doc.lines() {
+            writeln!(f, "{}", color.doc().paint(&format!("# {line}")))?;
+          }
+        }
         write!(f, "{} ", color.heading().paint("Usage:"))?;
       }
       Mode::Short => {

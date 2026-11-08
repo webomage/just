@@ -956,7 +956,13 @@ impl Subcommand {
     if !recipe.attributes.contains(AttributeKind::Doc)
       && let Some(doc) = &recipe.doc
     {
-      println!("# {doc}");
+      for line in doc.split('\n') {
+        if line.is_empty() {
+          println!("#");
+        } else {
+          println!("# {line}");
+        }
+      }
     }
 
     for attribute in &recipe.attributes {

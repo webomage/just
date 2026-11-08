@@ -422,36 +422,40 @@ impl<'run, 'src> Parser<'run, 'src> {
       return None;
     }
 
-    let mut items = self.items.iter().rev();
+    let mut lines = Vec::new();
+    let mut idx = self.items.len();
 
-    if !matches!(items.next()?, Item::Newline) {
+    while idx >= 2 {
+      if !matches!(self.items[idx - 1], Item::Newline) {
+        break;
+      }
+
+      let Item::Comment(contents) = self.items[idx - 2] else {
+        break;
+      };
+
+      let first = match idx.checked_sub(3).and_then(|i| self.items.get(i)) {
+        None => true,
+        Some(Item::Newline) => false,
+        Some(_) => break,
+      };
+
+      if first && contents.starts_with("#!") {
+        break;
+      }
+
+      lines.push(contents[1..].trim());
+      idx -= 2;
+    }
+
+    if lines.is_empty() || lines.iter().all(|line| line.is_empty()) {
       return None;
     }
 
-    let Item::Comment(contents) = items.next()? else {
-      return None;
-    };
+    self.items.truncate(idx);
+    lines.reverse();
 
-    let first = match items.next() {
-      None => true,
-      Some(Item::Newline) => false,
-      Some(_) => return None,
-    };
-
-    if first && contents.starts_with("#!") {
-      return None;
-    }
-
-    let doc = contents[1..].trim().to_owned();
-
-    if doc.is_empty() {
-      return None;
-    }
-
-    self.items.pop().unwrap();
-    self.items.pop().unwrap();
-
-    Some(doc)
+    Some(lines.join("\n"))
   }
 
   /// Parse a justfile, consumes self

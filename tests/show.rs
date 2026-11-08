@@ -276,6 +276,27 @@ fn show_prints_doc_comment_and_attributes() {
 }
 
 #[test]
+fn show_prints_multiline_doc_comment() {
+  Test::new()
+    .justfile(
+      "
+        # line one
+        # line two
+        foo:
+      ",
+    )
+    .args(["--show", "foo"])
+    .stdout(
+      "
+        # line one
+        # line two
+        foo:
+      ",
+    )
+    .success();
+}
+
+#[test]
 fn show_prints_doc_attribute_without_doc_comment() {
   Test::new()
     .justfile(

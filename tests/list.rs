@@ -625,6 +625,28 @@ fn empty_doc_comments_are_ignored() {
 }
 
 #[test]
+fn multiline_hash_doc_comments_are_rendered() {
+  Test::new()
+    .justfile(
+      "
+        # line one
+        # line two
+        foo bar:
+      ",
+    )
+    .arg("--list")
+    .stdout(
+      "
+        Available recipes:
+            # line one
+            # line two
+            foo bar
+      ",
+    )
+    .success();
+}
+
+#[test]
 fn empty_doc_attributes_are_ignored() {
   Test::new()
     .justfile(
