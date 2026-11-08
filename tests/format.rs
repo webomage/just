@@ -1855,7 +1855,7 @@ fn trailing_comment_recipe_with_body_is_stripped() {
           echo baz
       ",
     "
-        foo:
+        foo: # bar
             echo baz
       ",
   );
@@ -1883,7 +1883,7 @@ fn trailing_comment_recipe_with_dependencies_and_body_is_stripped() {
         bar:
       ",
     "
-        foo: bar
+        foo: bar # baz
             echo qux
 
         bar:
