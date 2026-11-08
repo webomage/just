@@ -107,7 +107,7 @@ impl Subcommand {
       Clean { path } => Self::clean(config, &search, path.as_ref()),
       Dump { format } => Self::dump(config, compilation, *format),
       Groups => Self::groups(config, justfile),
-      List { path } => Self::list(config, justfile, path),
+      List { path } => Self::list(config, loader, &search, justfile, path),
       Run { arguments } => Self::run(config, loader, search, compilation, arguments),
       Show { path } => Self::show(config, justfile, path),
       Summary => Self::summary(config, justfile),
@@ -178,7 +178,7 @@ impl Subcommand {
         );
 
       if let Some(path) = Self::default_list_module(config, justfile, arguments) {
-        return Self::list(config, justfile, &path);
+        return Self::list(config, loader, &search, justfile, &path);
       }
 
       let result = justfile.run(config, &search, arguments, &compilation.overrides);
@@ -603,9 +603,93 @@ impl Subcommand {
     Ok(())
   }
 
-  fn list<'src>(config: &Config, root: &Justfile<'src>, path: &Modulepath) -> RunResult<'src> {
+  fn list<'src>(
+    config: &Config,
+    loader: &'src Loader,
+    search: &Search,
+    root: &Justfile<'src>,
+    path: &Modulepath,
+  ) -> RunResult<'src> {
     let module = Self::resolve_module(root, path, &path.components)?;
     Self::list_module(config, 0, &config.groups, module)?;
+
+    if path.components.is_empty() && config.groups.is_empty() {
+      let mut current_fallback = root.settings.fallback
+        && matches!(
+          config.search_config,
+          SearchConfig::FromInvocationDirectory | SearchConfig::FromSearchDirectory { .. }
+        );
+      let mut current_search: Option<Search> = None;
+      let mut seen_names: BTreeSet<String> = root
+        .public_recipes(config)
+        .into_iter()
+        .map(|recipe| recipe.name().to_owned())
+        .collect();
+      let mut fallback_recipes: Vec<Recipe<'src>> = Vec::new();
+
+      while current_fallback {
+        let next_search = match current_search
+          .as_ref()
+          .unwrap_or(search)
+          .search_parent_directory(config)
+        {
+          Ok(search) => search,
+          Err(_) => break,
+        };
+        let Ok(parent_compilation) = Self::compile(config, loader, &next_search) else {
+          break;
+        };
+        let parent_justfile = parent_compilation.justfile;
+        current_fallback = parent_justfile.settings.fallback;
+        let mut parent_recipes: Vec<Recipe<'src>> = parent_justfile
+          .recipes
+          .into_values()
+          .map(|rc| (*rc).clone())
+          .filter(Recipe::is_public)
+          .collect();
+        if config.unsorted {
+          parent_recipes.sort_by(|a, b| {
+            (&a.import_offsets, a.name.offset).cmp(&(&b.import_offsets, b.name.offset))
+          });
+        }
+        for recipe in parent_recipes {
+          if seen_names.insert(recipe.name().to_owned()) {
+            fallback_recipes.push(recipe);
+          }
+        }
+        current_search = Some(next_search);
+      }
+
+      if !fallback_recipes.is_empty() {
+        let list_prefix = &config.list_prefix;
+        println!(
+          "\n{list_prefix}{}",
+          config.color.stdout().group().paint("[fallback]")
+        );
+        for recipe in &fallback_recipes {
+          print!(
+            "{list_prefix}{}",
+            RecipeSignature {
+              name: recipe.name(),
+              recipe,
+            }
+            .color_display(config.color.stdout())
+          );
+          if let Some(doc) = recipe.doc() {
+            let first_line = doc.lines().next().unwrap_or("");
+            if !first_line.is_empty() {
+              print!(
+                " {} {}",
+                config.color.stdout().doc().paint("#"),
+                config.color.stdout().doc().paint(first_line)
+              );
+            }
+          }
+          println!();
+        }
+      }
+    }
+
     Ok(())
   }
 
