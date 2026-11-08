@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "upstreamRepo": "casey/just",
+  "forkRepo": "webomage/just",
+  "overlayBranch": "beta",
+  "baseTag": "1.59.0",
+  "wasmPackageVersion": "1.59.0-w0m.1",
+  "branches": [
+    {
+      "branch": "fix/fmt-preserve-recipe-header-comment",
+      "issue": "casey/just#3773",
+      "summary": "Preserve trailing comments on recipe header lines when the recipe has a body in --fmt and --dump"
+    },
+    {
+      "branch": "feat/multiline-doc-comments",
+      "issue": "casey/just#2684",
+      "summary": "Capture consecutive # doc comment lines above recipes and render them in --list, --usage, and --show"
+    },
+    {
+      "branch": "feat/list-fallback-recipes",
+      "issue": "casey/just#1500",
+      "summary": "List fallback recipes from parent justfiles under [fallback] when set fallback is enabled"
+    },
+    {
+      "branch": "feat/wildcard-imports",
+      "issue": "casey/just#1885",
+      "summary": "Support glob wildcard patterns in import statements (e.g. import 'just/*.just')"
+    }
+  ]
+}
